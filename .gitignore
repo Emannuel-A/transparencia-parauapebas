@@ -1,0 +1,17 @@
+# segredos — NUNCA versionar
+.segredos/
+*.key
+
+# dados gerados (o histórico vai cifrado em data/semente.bin)
+data/raw/
+data/cache/
+data/warehouse/
+site/data/
+legado/
+Despesas Pagas - Pessoal/
+
+__pycache__/
+*.pyc
+.venv/
+.vscode/
+.claude/

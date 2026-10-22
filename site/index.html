@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light dark">
+  <title>Transparência Parauapebas</title>
+  <meta name="description" content="Painel de inteligência fiscal da Prefeitura e da Câmara Municipal de Parauapebas (PA).">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f5f8c'/%3E%3Cpath d='M8 22V12m5 10V8m5 14v-7m5 7V10' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="assets/app.css">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+  <script type="module" src="assets/app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#conteudo">Pular para o conteúdo</a>
+
+  <!-- Login -->
+  <section id="tela-login" class="login" hidden>
+    <form id="form-login" class="login-card" autocomplete="on">
+      <div class="brand brand-lg"><span class="brand-mark" aria-hidden="true"></span>
+        <div><strong>Transparência Parauapebas</strong><small>Prefeitura &amp; Câmara Municipal</small></div></div>
+      <label>Usuário<input name="usuario" autocomplete="username" required autocapitalize="none" spellcheck="false"></label>
+      <label>Senha<input name="senha" type="password" autocomplete="current-password" required></label>
+      <button class="btn btn-primary" type="submit">Entrar</button>
+      <p id="login-msg" class="login-msg" role="alert" aria-live="assertive"></p>
+      <p class="muted small">Acesso restrito. Os dados são cifrados (AES-256) e só abrem com uma senha válida.
+        Solicite acesso ao administrador.</p>
+    </form>
+  </section>
+
+  <!-- Aplicação -->
+  <div id="app" class="app" hidden>
+    <header class="topbar">
+      <button class="icon-btn only-mobile" id="btn-menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="nav">☰</button>
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span>
+        <div><strong>Transparência Parauapebas</strong><small id="freshness">carregando…</small></div></div>
+      <div class="seg" role="radiogroup" aria-label="Entidade" id="seg-ent"></div>
+      <div class="top-actions">
+        <button class="icon-btn" id="btn-tema" aria-label="Alternar tema claro/escuro" title="Tema">◐</button>
+        <span class="user-chip" id="user-chip"></span>
+        <button class="btn btn-ghost" id="btn-sair">Sair</button>
+      </div>
+    </header>
+
+    <nav id="nav" class="sidenav" aria-label="Seções"></nav>
+
+    <main id="conteudo" class="main" tabindex="-1">
+      <section class="filters" aria-label="Filtros globais" id="filtros">
+        <div class="f-field f-period">
+          <span class="f-label" id="lbl-periodo">Período</span>
+          <div class="chips" role="radiogroup" aria-labelledby="lbl-periodo" id="chips-periodo"></div>
+          <div class="f-range" id="f-range">
+            <label>de <input type="date" id="f-de"></label>
+            <label>até <input type="date" id="f-ate"></label>
+          </div>
+        </div>
+        <label class="f-field">Órgão / secretaria
+          <select id="f-orgao"><option value="">Todos os órgãos</option></select></label>
+        <label class="f-field">Modalidade
+          <select id="f-mod"><option value="">Todas as modalidades</option></select></label>
+        <label class="f-field">Categoria econômica
+          <select id="f-grupo"><option value="">Todas</option></select></label>
+        <label class="f-field f-grow">Credor, CNPJ ou nº documento
+          <input type="search" id="f-busca" placeholder="Ex.: construtora, 12.345.678/0001-90" autocomplete="off"></label>
+        <button class="btn btn-ghost" id="btn-limpar" type="button">Limpar filtros</button>
+      </section>
+      <p class="active-filters" id="resumo-filtros" aria-live="polite"></p>
+      <div id="view" class="view"></div>
+    </main>
+  </div>
+
+  <div id="carregando" class="loading" hidden><div class="spinner" aria-hidden="true"></div><p id="carregando-msg">Decifrando dados…</p></div>
+
+  <dialog id="modal" class="modal" aria-labelledby="modal-titulo">
+    <div class="modal-head"><h2 id="modal-titulo"></h2>
+      <button class="icon-btn" id="modal-fechar" aria-label="Fechar">✕</button></div>
+    <div id="modal-corpo" class="modal-body"></div>
+  </dialog>
+
+  <noscript>Este painel precisa de JavaScript habilitado.</noscript>
+</body>
+</html>

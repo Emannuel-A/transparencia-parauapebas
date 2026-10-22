@@ -1,0 +1,17 @@
+{
+ "versao": 1,
+ "kdf": {
+  "alg": "PBKDF2-SHA256",
+  "iteracoes": 310000
+ },
+ "usuarios": [
+  {
+   "usuario": "emannuel",
+   "nome": "Emannuel (administrador)",
+   "papel": "admin",
+   "sal": "0dsviqg8xLkMqoCdkPW/xw==",
+   "chave": "s7pr+3Blf+TbVtE6FnGVGRTDpr0vKNUrHlqcvfxsaViXXYwQ9l5ZgmHX0Oa92YiLIDANX7PbrPoN7rF3",
+   "criado": "2026-10-21 22:06"
+  }
+ ]
+}

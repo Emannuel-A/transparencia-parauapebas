@@ -1,0 +1,89 @@
+name: Atualizar dados e publicar
+
+on:
+  schedule:
+    # A cada 2 horas entre 07h e 23h (horário de Brasília = UTC-3)
+    - cron: "0 10-23/2,1 * * *"
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: "incremental (ano atual e anterior) ou somente-publicar"
+        default: incremental
+        type: choice
+        options: [incremental, somente-publicar]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      PAINEL_CHAVE_DADOS: ${{ secrets.PAINEL_CHAVE_DADOS }}
+      TZ: America/Belem
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Restaurar dados do último ciclo
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data/raw
+            data/cache
+          key: dados-${{ github.run_id }}
+          restore-keys: dados-
+
+      - name: Restaurar histórico (semente cifrada)
+        run: python -m etl.semente restaurar
+
+      - name: Extrair, transformar e publicar
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.modo }}" = "somente-publicar" ]; then
+            if ls data/raw/PREF/pagamentos_$(date +%Y).parquet >/dev/null 2>&1; then
+              python -m etl.pipeline --sem-extrair
+              exit 0
+            fi
+          fi
+          # Se a API do portal falhar, publica com os dados já disponíveis
+          python -m etl.pipeline --limite-detalhes 1500 --limite-cnpj 800 || python -m etl.pipeline --sem-extrair
+
+      - name: Salvar dados para o próximo ciclo
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/raw
+            data/cache
+          key: dados-${{ github.run_id }}
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  publicar:
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
