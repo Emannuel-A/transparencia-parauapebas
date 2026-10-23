@@ -14,7 +14,7 @@ S = RAW_DIR / "SICONFI"
 
 # --------------------------------------------------------------------------- receita: origens
 # O ementário da receita mudou em 2022 (Portaria Conjunta STN/SOF 650/2019 → 2022). Os dois esquemas convivem.
-CFEM_NAT = ("1712", "1718022")             # cota-parte da CFEM (2022+: 1.7.1.2.51; até 2021: 1.7.1.8.02.2)
+CFEM_NAT = ("171251", "1718022")           # cota-parte da CFEM (2022+: 1.7.1.2.51; até 2021: 1.7.1.8.02.2) — 1.7.1.2.52 é petróleo (FEP)
 CFEM_FONTE = ("1708", "19400000")           # fonte de recursos da CFEM (2022+: 708; até 2021: 194)
 
 
