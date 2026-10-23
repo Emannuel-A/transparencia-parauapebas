@@ -41,7 +41,10 @@ def _cnpjs():
     docs = []
     for ent in ENTIDADES.values():
         for arq in (RAW_DIR / ent["sigla"]).glob("pagamentos*_*.parquet"):
-            doc, tipo = documento(pd.read_parquet(arq, columns=["cnpjcpf"])["cnpjcpf"])
+            df = pd.read_parquet(arq)
+            if "cnpjcpf" not in df.columns:  # endpoint sem registros (ex.: restos a pagar da Câmara)
+                continue
+            doc, tipo = documento(df["cnpjcpf"])
             docs += doc[tipo == "PJ"].unique().tolist()
     return list(dict.fromkeys(docs))
 
