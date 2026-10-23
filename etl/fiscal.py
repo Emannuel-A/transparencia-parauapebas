@@ -66,14 +66,27 @@ def _f(df, col="valor"):
     return df
 
 
+def nat_portal(codigo) -> str:
+    """'001.7.1.2.51.0.1.00.00.00' -> '17125101' (formato da MSC).
+
+    O 1º bloco traz o tipo do lançamento + a categoria econômica no último dígito ('001' = receita, categoria 1;
+    '951' = dedução da receita corrente, ex.: retenção do FUNDEB sobre o ICMS). A dedução é mantida na mesma
+    natureza, com valor negativo, para que a origem fique líquida.
+    """
+    seg = re.sub(r"\s", "", str(codigo or "")).split(".")
+    if len(seg) < 7 or not seg[0]:
+        return ""
+    return seg[0][-1] + "".join(seg[1:7])
+
+
 def _nomes_portal():
     """Nomes das naturezas de receita publicados no portal municipal (receitasprevarrec)."""
     nomes = {}
     for arq in sorted((RAW_DIR / "PREF").glob("receitasprev_*.parquet")):
         for cod, esp in pd.read_parquet(arq, columns=["codigo", "especificacao"]).itertuples(index=False):
-            seg = re.sub(r"\s", "", str(cod)).split(".")
-            if len(seg) >= 8:
-                nomes[seg[1] + seg[2] + seg[3] + seg[4] + seg[5] + seg[6] + seg[7]] = re.sub(r"\s+", " ", str(esp)).strip()
+            nat = nat_portal(cod)
+            if nat and str(cod).strip().startswith("0"):
+                nomes[nat] = re.sub(r"\s+", " ", str(esp)).strip()
     return nomes
 
 
@@ -186,8 +199,7 @@ def montar(log=print):
             rl["data"] = N.data_br(rl["dataMovimento"])
             v = N.valor_br(rl["valor"]).fillna(0)
             rl["v"] = v.where(~rl["registro"].fillna("").str.upper().str.startswith("ANUL"), -v.abs())
-            cod = rl["codigo"].fillna("").str.replace(r"\s", "", regex=True).str.split(".")
-            rl["nat"] = cod.map(lambda seg: "".join(seg[1:8]) if len(seg) >= 8 else "")
+            rl["nat"] = rl["codigo"].map(nat_portal)
             rl["origem"] = rl["nat"].map(origem_receita)
             rl["esp"] = N.corrigir_quebras(rl["especificacao"])
             rl["contrib"] = N.corrigir_quebras(rl["contribuinte"])
