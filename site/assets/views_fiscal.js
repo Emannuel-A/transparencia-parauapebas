@@ -155,7 +155,12 @@ export const cfem = {
     const r = R.find((x) => x.ano === ano); const pico = R.reduce((a, x) => (x.rec > a.rec ? x : a), R[0]);
     const ultCompleto = [...R].reverse().find((x) => !parcial(B, x.ano)) || r;
     const queda = pico.rec ? (1 - ultCompleto.rec / pico.rec) * 100 : 0;
-    const mens = F.receita_mensal.filter((m) => m.origem.startsWith('CFEM')).sort((a, b) => a.ano - b.ano || a.mes - b.mes);
+    // Série oficial (MSC/SICONFI) + meses ainda não enviados ao Tesouro, pelos lançamentos do portal municipal (preliminar)
+    const prel = (F.receita_mensal_preliminar || []).filter((m) => m.origem.startsWith('CFEM')).map((m) => ({ ...m, prel: true }));
+    const mens = F.receita_mensal.filter((m) => m.origem.startsWith('CFEM')).concat(prel).sort((a, b) => a.ano - b.ano || a.mes - b.mes);
+    const prelAno = prel.filter((m) => m.ano === ano);
+    const prelTot = prelAno.reduce((s2, m) => s2 + m.valor, 0);
+    const prelMeses = prelAno.map((m) => MES[m.mes - 1]).join(', ');
     const lrfE = F.lrf.filter((l) => l.poder === 'Executivo');
     const ap = F.cfem_aplicacao.filter((x) => x.ano === ano);
     const porNat = Object.values(ap.reduce((m, x) => { (m[x.nd] ||= { nd: x.nd, v: 0 }).v += x.empenhado; return m; }, {})).sort((a, b) => b.v - a.v);
@@ -169,7 +174,7 @@ export const cfem = {
       ${pct(lrfE[0]?.pct_rcl || 0)} para <b>${pct(lrfE[lrfE.length - 1]?.pct_rcl || 0)}</b> da receita corrente líquida — uma receita volátil, atrelada ao preço do minério,
       financiando cada vez mais despesas permanentes.</p>
       <div class="kpis">
-        ${kpi(`CFEM arrecadada em ${ano}`, compacto(r.rec), `${pct(r.dep)} da receita total`)}
+        ${kpi(`CFEM arrecadada em ${ano}`, compacto(r.rec), `${pct(r.dep)} da receita total${prelTot ? ` · <b>+ ${compacto(prelTot)} preliminar</b> (${prelMeses}, portal municipal)` : ''}`)}
         ${kpi('Empenhado com recursos da CFEM', compacto(r.emp), r.emp > r.rec ? '<span class="delta-up">acima da arrecadação do ano</span>' : 'fonte de recursos 708')}
         ${kpi('Em pessoal (vedado)', compacto(r.pessoal), r.pessoal > 0 ? '<span class="delta-up">verificar exceção da educação</span>' : '<span class="delta-down">nenhum valor no grupo 3.1</span>')}
         ${kpi('Em dívida (vedado)', compacto(r.divida), r.divida > 0 ? '<span class="delta-up">só permitido dívida com a União</span>' : '<span class="delta-down">nenhum valor</span>')}
@@ -177,7 +182,7 @@ export const cfem = {
         ${kpi('Em investimentos (4.4)', pct(r.emp ? (r.investimento / r.emp) * 100 : 0), compacto(r.investimento))}
       </div>
       <div class="grid">
-        ${card('Arrecadação mensal da CFEM', 'Receita realizada a cada mês (MSC). A CFEM acompanha o preço do minério de ferro e o câmbio.', ch('c-mes', 'chart-lg'))}
+        ${card('Arrecadação mensal da CFEM', `Receita realizada a cada mês (MSC/SICONFI). ${prel.length ? 'Barras claras: meses ainda não enviados ao Tesouro, somados dos lançamentos do portal municipal — dado preliminar, substituído pelo oficial quando publicado.' : ''} A CFEM acompanha o preço do minério de ferro e o câmbio.`, ch('c-mes', 'chart-lg'))}
         <div class="cols-2">
           ${card('Dependência da CFEM', 'Participação da CFEM na receita total do Município.', ch('c-dep'))}
           ${card('CFEM × despesa com pessoal', 'Índice 2021 = 100 para comparar duas grandezas na mesma escala.', ch('c-idx'))}
@@ -195,10 +200,13 @@ export const cfem = {
     $('ano-fiscal').onchange = (e) => { ctx.estado.anoFiscal = Number(e.target.value); ctx.rerender(); };
 
     grafico($('c-mes'), {
-      tooltip: { trigger: 'axis', valueFormatter: brl },
+      tooltip: { trigger: 'axis', formatter: (ps) => { const m = mens[ps[0].dataIndex]; return `${ps[0].name}<br><b>${brl(m.valor)}</b><br>${m.prel ? 'preliminar — portal municipal' : 'oficial — MSC/SICONFI'}`; } },
       xAxis: { type: 'category', data: mens.map((m) => `${MES[m.mes - 1]}/${String(m.ano).slice(2)}`) },
       yAxis: { type: 'value', axisLabel: { formatter: eixo } }, dataZoom: [{ type: 'inside' }],
-      series: [{ name: 'CFEM', type: 'bar', data: mens.map((m) => m.valor), barMaxWidth: 14, itemStyle: { borderRadius: [4, 4, 0, 0] } }],
+      grid: { left: 8, right: 16, top: 12, bottom: 8, containLabel: true },
+      series: [{ name: 'CFEM', type: 'bar', barMaxWidth: 14, itemStyle: { borderRadius: [4, 4, 0, 0] },
+        data: mens.map((m) => ({ value: m.valor, itemStyle: m.prel ? { opacity: 0.4 } : undefined,
+          label: m.prel ? { show: true, position: 'top', formatter: 'prelim.', fontSize: 10 } : undefined })) }],
     });
     grafico($('c-dep'), {
       tooltip: { trigger: 'axis', valueFormatter: (v) => `${v.toFixed(1)}%` },

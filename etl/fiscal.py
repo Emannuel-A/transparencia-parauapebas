@@ -177,7 +177,7 @@ def montar(log=print):
                  .rename(columns={"exercicio": "ano", "fonte_recursos": "fonte", "valor": "empenhado"}).round(2).to_dict("records"))
 
     # ------------------------------------------------------------- receita diária do portal (Ao vivo)
-    diaria, lanc_recentes = [], []
+    diaria, lanc_recentes, preliminar = [], [], []
     arqs = sorted((RAW_DIR / "PREF").glob("receitaslanc_*.parquet"))
     if arqs:
         from . import normalize as N
@@ -191,6 +191,15 @@ def montar(log=print):
             rl["origem"] = rl["nat"].map(origem_receita)
             rl["esp"] = N.corrigir_quebras(rl["especificacao"])
             rl["contrib"] = N.corrigir_quebras(rl["contribuinte"])
+            # Série preliminar: meses ainda não enviados ao SICONFI (a MSC sai até o fim do mês seguinte)
+            oficiais = {(int(a), int(m)) for a, m in zip(mensal["ano"], mensal["mes"])}
+            rl["ano"], rl["mes"] = rl["data"].dt.year, rl["data"].dt.month
+            prel = rl[[(int(a), int(m)) not in oficiais for a, m in zip(rl["ano"].fillna(0), rl["mes"].fillna(0))] & rl["data"].notna()]
+            preliminar = (prel.groupby(["ano", "mes", "origem"])["v"].sum().reset_index().rename(columns={"v": "valor"})
+                          .assign(ano=lambda d: d.ano.astype(int), mes=lambda d: d.mes.astype(int)).round(2).to_dict("records"))
+            for r in preliminar:
+                if r["origem"].startswith("CFEM"):
+                    log(f"  CFEM preliminar (portal) {r['mes']:02d}/{r['ano']}: R$ {r['valor']:,.2f}")
             corte = rl["data"].max() - pd.Timedelta(days=120)
             rec = rl[rl["data"] >= corte]
             diaria = (rec.groupby([rec["data"].dt.strftime("%Y-%m-%d"), "origem"])["v"].sum().reset_index()
@@ -199,7 +208,7 @@ def montar(log=print):
             lanc_recentes = [{"d": d.strftime("%Y-%m-%d"), "esp": e, "contrib": c, "origem": o, "v": round(float(x), 2)}
                              for d, e, c, o, x in zip(top["data"], top["esp"], top["contrib"], top["origem"], top["v"])]
 
-    fiscal = {"receita_diaria": diaria, "receita_lancamentos": lanc_recentes, "balanco": balanco, "funcoes": funcoes, "lrf": lrf, "receita_natureza": rec_nat, "receita_mensal": serie,
+    fiscal = {"receita_mensal_preliminar": preliminar, "receita_diaria": diaria, "receita_lancamentos": lanc_recentes, "balanco": balanco, "funcoes": funcoes, "lrf": lrf, "receita_natureza": rec_nat, "receita_mensal": serie,
               "cfem_aplicacao": cfem_aplic, "caixa": caixa, "despesa_fonte": por_fonte, "status": status.to_dict("records"),
               "fonte": "SICONFI/Tesouro Nacional — RREO, RGF e MSC declarados pelo Município"}
     (WAREHOUSE_DIR / "fiscal.json").write_text(json.dumps(_limpo(fiscal), ensure_ascii=False, default=float, allow_nan=False), encoding="utf-8")
