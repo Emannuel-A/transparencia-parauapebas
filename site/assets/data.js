@@ -19,7 +19,7 @@ export function prepararBase(p) {
   const D = p.dims;
   const natGrupoIdx = [...new Set(D.nat.g)].sort();
   const base = {
-    meta: p.meta, dims: D, pag, emp, con: p.con, lic: p.lic, qualidade: p.qualidade, dia0,
+    meta: p.meta, dims: D, pag, emp, con: p.con, lic: p.lic, qualidade: p.qualidade, fiscal: p.fiscal || {}, dia0,
     grupos: natGrupoIdx,
     natGrupo: Int8Array.from(D.nat.g, (g) => natGrupoIdx.indexOf(g)),
     modGrupos: [...new Set(D.mod_g)],

@@ -10,6 +10,9 @@ fica publicado no GitHub Pages e só abre com usuário e senha.
 
 | Visão | Conteúdo |
 | --- | --- |
+| **Perícia — achados** | Testes automáticos de conformidade (LRF, Lei 4.320/1964, Lei 14.133/2021, regras da CFEM) com gravidade, base legal e link para os dados. |
+| **Receitas e orçamento** | LOA prevista × arrecadado × empenhado por exercício, créditos adicionais, resultado orçamentário, receita por origem e natureza, orçamento por função de governo. |
+| **CFEM e mineração** | Royalties da mineração mês a mês, dependência da receita, CFEM × despesa com pessoal e onde a CFEM foi aplicada (por natureza e função), com as vedações legais. |
 | **Ao vivo** | O que foi pago e empenhado **hoje, nos últimos 3, 7, 15 e 30 dias**, comparado à janela anterior. Inclui linha do tempo de pagamentos, novos empenhos com objeto, fornecedores que receberam pela primeira vez e quando o portal publicou dados pela última vez. |
 | Visão geral | Totais, evolução mensal por categoria econômica, áreas de governo, formas de contratação, maiores órgãos e credores, e um resumo em texto. |
 | Pessoal | Folha por vínculo (efetivos, temporários, comissionados, agentes políticos, encargos...) e por órgão. |
@@ -24,6 +27,28 @@ fica publicado no GitHub Pages e só abre com usuário e senha.
 Os **filtros globais** (entidade, período, órgão, modalidade, categoria econômica e busca por credor/CNPJ) valem para todas as
 visões, ficam na URL (dá para compartilhar um link filtrado) e são lembrados no navegador. Clique em qualquer credor para abrir
 o dossiê (cadastro da Receita, sócios, órgãos, empenhos e pagamentos) e em qualquer empenho para ver o objeto e os pagamentos.
+
+## Fontes de dados
+
+| Fonte | O que traz | Observação |
+| --- | --- | --- |
+| Portal Governo Transparente (API) | pagamentos, empenhos, restos a pagar, contratos, licitações, receitas lançamento a lançamento | bloqueia o IP com muitas conexões simultâneas (HTTP 403); o pipeline usa 3 conexões e para ao primeiro 403 |
+| SICONFI / Tesouro Nacional | RREO (balanço orçamentário, despesa por função, RCL), RGF (pessoal × RCL, caixa × restos a pagar) e MSC (receita por natureza e despesa por **fonte de recursos**) | dados declarados pelo Município; é a fonte oficial do orçamento e da CFEM |
+| Receita Federal (MinhaReceita/BrasilAPI) | cadastro e sócios dos CNPJs | cache local |
+
+## Como alterar o site (sem programar muito)
+
+| Quero mudar… | Onde |
+| --- | --- |
+| Cores, fontes, espaçamentos | `site/assets/app.css`, bloco `:root` no topo (claro) e os dois blocos escuros logo abaixo. A paleta dos gráficos (`--c1` a `--c8`) foi validada para daltonismo — troque por outra só depois de rodar o validador da skill *dataviz*. |
+| Textos e títulos de uma tela | `site/assets/views.js` (despesa) e `site/assets/views_fiscal.js` (orçamento, CFEM, perícia). Cada tela é um objeto `{ id, titulo, render }`. |
+| Ordem do menu / incluir tela | lista `VIEWS` no fim de `views.js`. |
+| Regras da perícia (limites, percentuais, textos legais) | função `achados()` em `views_fiscal.js`. |
+| Limites de dispensa por ano | `LIMITES_DISPENSA` em `etl/config.py`. |
+| Classificação de modalidade, vínculo de pessoal, área de governo | `etl/normalize.py`. |
+| Origem das receitas (CFEM, ICMS, FPM…) | `origem_receita()` em `etl/fiscal.py`. |
+
+Depois de editar, rode `python -m etl.pipeline --sem-extrair` (se mexeu no ETL), confira em `abrir_painel.bat` e faça commit/push: o GitHub publica sozinho.
 
 ## Acesso e usuários
 

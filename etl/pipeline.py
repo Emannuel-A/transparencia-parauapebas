@@ -10,7 +10,7 @@ from datetime import date, timedelta
 
 import pandas as pd
 
-from . import enrich, extract, publish, transform
+from . import enrich, extract, fiscal, publish, siconfi, transform
 from .config import ENTIDADES, RAW_DIR
 from .normalize import documento, modalidade
 
@@ -67,8 +67,14 @@ def main(argv=None):
             print(f"  {e}")
         print("[3/5] Cadastro de CNPJs na Receita Federal")
         enrich.enriquecer(_cnpjs(), limite=a.limite_cnpj)
+        print("[3b/5] SICONFI/Tesouro: RREO, RGF e MSC (orçamento, receitas, LRF, CFEM)")
+        try:
+            siconfi.extrair_siconfi(completo=a.modo == "completo")
+        except RuntimeError as e:
+            print(f"  {e} — mantidos os dados SICONFI anteriores")
     print("[4/5] Transformação e qualidade")
     transform.transformar()
+    fiscal.montar()
     if not a.sem_publicar:
         print("[5/5] Publicação cifrada")
         publish.publicar()

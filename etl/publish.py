@@ -113,6 +113,8 @@ def montar_pacote():
             .str.replace("São participantes os seguintes órgãos:", "", regex=False).str.strip().tolist(),
         },
         "qualidade": json.loads((WAREHOUSE_DIR / "qualidade.json").read_text(encoding="utf-8")),
+        "fiscal": json.loads((WAREHOUSE_DIR / "fiscal.json").read_text(encoding="utf-8"))
+        if (WAREHOUSE_DIR / "fiscal.json").exists() else {},
     }
     return pacote
 

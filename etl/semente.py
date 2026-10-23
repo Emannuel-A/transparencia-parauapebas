@@ -37,8 +37,8 @@ def restaurar():
     with tarfile.open(fileobj=io.BytesIO(dados), mode="r:gz") as tar:
         for m in tar.getmembers():
             destino = DATA_DIR / m.name
-            if m.name.startswith("cache/") and destino.exists() and destino.stat().st_size > m.size:
-                continue  # o cache do Actions pode estar mais completo que a semente
+            if destino.exists() and (m.name.startswith("raw/") or destino.stat().st_size > m.size):
+                continue  # o cache do Actions é mais recente que a semente: não sobrescrever
             tar.extract(m, DATA_DIR, filter="data")
     print("Semente restaurada.")
 

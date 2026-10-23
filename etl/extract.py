@@ -115,6 +115,30 @@ def baixar_licitacoes(codigo, ano, exer):
     return df
 
 
+def baixar_receitas(codigo, ano, exer, log=print):
+    """Receitas orçamentárias: previsão × arrecadação por natureza (com nomes oficiais) e lançamentos diários.
+
+    O endpoint /count de receitas responde HTTP 500; a paginação segue até vir uma página incompleta.
+    """
+    hoje = date.today()
+    mes = 12 if ano < hoje.year else hoje.month
+    prev = _get(f"receitasprevarrec/{codigo}?exer={exer}&mes={mes}") or []
+    ini, fim = _periodo(ano)
+    lanc, p = [], 1
+    while True:
+        itens = _get(f"receitasorc/{codigo}?page={p}&pagesize={PAGE_SIZE}&exer={exer}&inicio={ini}&fim={fim}&covid=false") or []
+        lanc += itens
+        if len(itens) < PAGE_SIZE:
+            break
+        p += 1
+    dp = pd.DataFrame(prev).astype("string")
+    dl = pd.DataFrame(lanc).astype("string")
+    for df in (dp, dl):
+        df["ano_exercicio"] = ano
+    dp["mes_ref"] = mes
+    return dp, dl
+
+
 def anos_alvo(modo, mapa_exer):
     hoje = date.today()
     anos = sorted(a for a in mapa_exer if a >= ANO_INICIAL and a <= hoje.year)
@@ -140,6 +164,17 @@ def extrair(modo="incremental", forcar=False, log=print):
         info = {"exercicios": mapa, "remessa": remessa(codigo), "arquivos": {}}
         for ano in anos_alvo(modo, mapa):
             exer = mapa[ano]
+            if not (destino / f"receitaslanc_{ano}.parquet").exists() or ano >= date.today().year - 1 or forcar:
+                try:
+                    dp, dl = baixar_receitas(codigo, ano, exer)
+                    if len(dp) or len(dl):
+                        dp.to_parquet(destino / f"receitasprev_{ano}.parquet", index=False)
+                        dl.to_parquet(destino / f"receitaslanc_{ano}.parquet", index=False)
+                        log(f"  {sigla} receitas {ano}: {len(dp)} naturezas previstas, {len(dl):,} lançamentos")
+                except Bloqueado:
+                    raise
+                except RuntimeError as e:
+                    log(f"  {sigla} receitas {ano}: indisponível ({e})")
             if not forcar and _ja_baixado(destino, ano):
                 log(f"  {sigla} {ano}: ano fechado já baixado (use --forcar para rebaixar)")
                 continue

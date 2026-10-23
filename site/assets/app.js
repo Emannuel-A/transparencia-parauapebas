@@ -1,7 +1,7 @@
 import { abrirPacote, carregarCadastro, entrar, gerarSenha, publicarCadastro, registroUsuario, sair, sessaoAtual } from './auth.js';
 import { brDeDia, brl, esc, filtrarEmp, filtrarPag, hojeIso, int, intervalo, isoDeDia, prepararBase, serieMensal, somarPor, pct } from './data.js';
 import { graficoMensal, kpi, limparGraficos, tabela } from './ui.js';
-import { VIEWS, N, badgeMod, cabecalho, card, ch, colunasEmp, colunasPag, linkCred } from './views.js';
+import { VIEWS, N, badgeMod, cabecalho, card, ch, colunasEmp, colunasPag, linkCred, resumoContratacao, trilhaFracionamento } from './views.js';
 
 const REPO_PADRAO = 'Emannuel-A/transparencia-parauapebas';
 const $ = (id) => document.getElementById(id);
@@ -103,7 +103,7 @@ function montarShell() {
   $('btn-limpar').onclick = () => { F = { ...FILTROS_PADRAO }; sincronizarControles(); render(); };
 
   const vistas = sessao.papel === 'admin' ? [...VIEWS, ADMIN_VIEW] : VIEWS;
-  $('nav').innerHTML = vistas.map((v, i) => `${v.id === 'qualidade' ? '<div class="nav-sep">Sistema</div>' : ''}${i === 1 ? '<div class="nav-sep">Análises</div>' : ''}
+  $('nav').innerHTML = vistas.map((v, i) => `${v.id === 'qualidade' ? '<div class="nav-sep">Sistema</div>' : ''}${i === 1 ? '<div class="nav-sep">Orçamento e perícia</div>' : ''}${v.id === 'geral' ? '<div class="nav-sep">Despesa</div>' : ''}
     <a href="#/${v.id}" data-rota="${v.id}"><span class="nav-ico" aria-hidden="true">${v.icone}</span>${esc(v.titulo)}${v.live ? '<span class="live-dot" aria-label="ao vivo"></span>' : ''}</a>`).join('');
   $('nav').onclick = (ev) => {
     const a = ev.target.closest('[data-rota]'); if (!a) return;
@@ -167,7 +167,8 @@ function render() {
   const ip = filtrarPag(B, F, per); const ie = filtrarEmp(B, F, per);
   resumoFiltros(v, per, ip, performance.now() - t0);
   limparGraficos();
-  const ctx = { B, F, per, ip, ie, estado, setFiltro, abrirCredor, abrirEmpenho, rerender: render, sessao };
+  const ctx = { B, F, per, ip, ie, estado, setFiltro, abrirCredor, abrirEmpenho, rerender: render, sessao,
+    auditoriaResumo: () => ({ frac: trilhaFracionamento(B, ie).length, pctDireta: resumoContratacao(B, ip).pctDireta }) };
   try { v.render($('view'), ctx); } catch (e) { console.error(e); $('view').innerHTML = `<div class="notice notice-warn">Erro ao montar esta visão: ${esc(e.message)}</div>`; }
 }
 

@@ -47,7 +47,7 @@ function mesmoPeriodoAnoAnterior(B, [de, ate]) {
 
 // ================================================================= VISÃO GERAL
 const geral = {
-  id: 'geral', titulo: 'Visão geral', icone: '◧',
+  id: 'geral', titulo: 'Panorama da despesa', icone: '◧',
   render(el, ctx) {
     const { B, ip, ie, per } = ctx; const n = N(B);
     const pago = soma(ip, B.pag.v); const emp = soma(ie, B.emp.ve);
@@ -61,11 +61,11 @@ const geral = {
     const topCred = somarPor(ip, (i) => B.pag.c[i], B.pag.v, { top: 15, filtro: pagFiltro(B, ctx, true) });
     const invest = soma(ip, B.pag.v, (i) => B.pag.nat[i] >= 0 && B.dims.nat.c[B.pag.nat[i]].startsWith('4.4'));
 
-    el.innerHTML = `${cabecalho('Visão geral da despesa', 'Quanto foi pago, com o quê, por quem e como foi contratado — no período e filtros selecionados.')}
+    el.innerHTML = `${cabecalho('Panorama da despesa', 'Despesa paga no período: por categoria econômica, função de governo, forma de contratação, unidade gestora e credor.')}
       <div class="story" id="story"></div>
       <div class="kpis">
-        ${kpi('Total pago (líquido de estornos)', compacto(pago), delta(pago, pagoAnt, 'vs mesmo período do ano anterior'), brl(pago))}
-        ${kpi('Total empenhado', compacto(emp), `${pct(emp ? (soma(ie, B.emp.vp) / emp) * 100 : 0)} já pago`, brl(emp))}
+        ${kpi('Despesa paga (líquida de estornos)', compacto(pago), delta(pago, pagoAnt, 'vs mesmo período do ano anterior'), brl(pago))}
+        ${kpi('Despesa empenhada', compacto(emp), `${pct(emp ? (soma(ie, B.emp.vp) / emp) * 100 : 0)} já pago`, brl(emp))}
         ${kpi('Pessoal e encargos', pct(pago ? (pessoal / pago) * 100 : 0), compacto(pessoal))}
         ${kpi('Investimentos (obras/equip.)', compacto(invest), pct(pago ? (invest / pago) * 100 : 0) + ' do pago')}
         ${kpi('Contratação direta', pct(gc.pctDireta), 'dispensas + inexigibilidades, sobre o que passa por contratação')}
@@ -74,7 +74,7 @@ const geral = {
       <div class="grid">
         ${card('Evolução mensal por categoria econômica', 'Pagamentos líquidos por mês. Clique na legenda para isolar categorias; arraste para ampliar.', ch('g-mensal', 'chart-lg'))}
         <div class="cols-2">
-          ${card('Por área de governo', 'Função orçamentária predominante do órgão pagador.', ch('g-area'))}
+          ${card('Por função de governo', 'Função orçamentária (Portaria MOG nº 42/1999) predominante na unidade pagadora.', ch('g-area'))}
           ${card('Por forma de contratação', 'Clique numa fatia para filtrar.', ch('g-mod'))}
         </div>
         <div class="cols-2">
@@ -145,11 +145,12 @@ const aovivo = {
         ${kpi('Maior pagamento', maior >= 0 ? compacto(B.pag.v[maior]) : '—', maior >= 0 ? esc(n.cred(B.pag.c[maior])).slice(0, 48) : '')}
       </div>
       <div class="grid">
-        ${card('Pagamentos por dia — últimos 45 dias', 'A faixa destacada é a janela selecionada; a linha mostra a quantidade de pagamentos.', ch('v-dia'))}
+        ${card('Pagamentos por dia — últimos 45 dias', 'Barras cheias = janela selecionada; passe o mouse para ver valor e quantidade.', ch('v-dia'))}
         <div class="cols-2">
           ${card('Por forma de contratação', '', ch('v-mod', 'chart-sm'))}
           ${card('Por órgão', 'Clique para filtrar.', ch('v-org', 'chart-sm'))}
         </div>
+        <div id="v-receita"></div>
         ${card('Linha do tempo de pagamentos', 'Cada ordem de pagamento publicada na janela, da mais recente para a mais antiga.', '<div id="t-feed"></div>')}
         <div class="cols-2">
           ${card('Empenhos emitidos na janela', 'Novos compromissos de despesa, com o objeto quando o portal o informa.', '<div id="t-emp"></div>')}
@@ -163,20 +164,29 @@ const aovivo = {
     const ipLongo = filtrarPag(B, ctx.F, [hoje - 44, hoje]);
     const s = serieDiaria(B, ipLongo, B.pag.d, B.pag.v, hoje - 44, hoje);
     grafico($('v-dia'), {
-      tooltip: { trigger: 'axis', valueFormatter: (v) => (v > 1000 ? brl(v) : int(v)) },
-      legend: { top: 0 },
+      tooltip: { trigger: 'axis', formatter: (ps) => { const p = ps[0]; return `${p.name}<br><b>${brl(p.value)}</b><br>${int(s.q[p.dataIndex])} pagamentos`; } },
       xAxis: { type: 'category', data: s.dias.map((d) => { const x = brDeDia(B, d); const w = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][new Date(B.dia0 + d * 864e5).getUTCDay()]; return `${x.slice(0, 5)} ${w}`; }) },
-      yAxis: [{ type: 'value', axisLabel: { formatter: (v) => compacto(v).replace('R$ ', '') } }, { type: 'value', splitLine: { show: false } }],
-      series: [
-        { name: 'Valor pago', type: 'bar', data: s.v, barMaxWidth: 22,
-          markArea: { itemStyle: { color: 'rgba(78,163,216,.12)' }, data: [[{ xAxis: Math.max(0, de - (hoje - 44)) }, { xAxis: ate - (hoje - 44) }]] } },
-        { name: 'Qtd. pagamentos', type: 'line', yAxisIndex: 1, data: s.q, smooth: true, symbol: 'circle', symbolSize: 4 },
-      ],
+      yAxis: { type: 'value', axisLabel: { formatter: (v) => compacto(v).replace('R$ ', '') } },
+      grid: { left: 8, right: 16, top: 12, bottom: 8, containLabel: true },
+      series: [{ name: 'Valor pago', type: 'bar', data: s.v.map((v, i) => ({ value: v, itemStyle: { opacity: s.dias[i] >= de && s.dias[i] <= ate ? 1 : 0.35 } })),
+        barMaxWidth: 22, itemStyle: { borderRadius: [4, 4, 0, 0] } }],
     });
     graficoRosca($('v-mod'), gc.r.map((x) => ({ nome: x.k, v: x.v })));
     graficoRanking($('v-org'), somarPor(ip, (i) => B.pag.o[i], B.pag.v, { top: 8 }).map((x) => ({ nome: n.org(x.k), v: x.v, k: x.k })),
       { onClick: (x) => ctx.setFiltro({ orgao: String(x.k) }) });
 
+    const rv = receitaAoVivo(B, de, ate, isoDeDia);
+    if (rv) {
+      $('v-receita').innerHTML = `<div class="cols-2">${card(`Receita arrecadada na janela: ${compacto(rv.total)}`, 'Lançamentos de receita orçamentária publicados pelo portal (por origem).', ch('v-rec', 'chart-sm'))}
+        ${card('Maiores entradas de receita', 'Lançamentos individuais na janela.', '<div id="t-rec"></div>')}</div>`;
+      graficoRanking($('v-rec'), rv.porOrig.map((x) => ({ nome: x.nome, v: x.v })));
+      tabela($('t-rec'), rv.lanc, [
+        { t: 'Data', v: (x) => x.d, h: (x) => esc(x.d.split('-').reverse().join('/')) },
+        { t: 'Receita', v: (x) => x.esp, h: (x) => esc(x.esp), wrap: true },
+        { t: 'Contribuinte', h: (x) => esc(x.contrib), wrap: true },
+        { t: 'Valor', v: (x) => x.v, h: (x) => brl(x.v), num: true },
+      ], { porPagina: 8, ordem: [3, -1], nomeCsv: `receitas-${jan}` });
+    }
     const feed = Array.from(ip).sort((a, b) => B.pag.d[b] - B.pag.d[a] || B.pag.v[b] - B.pag.v[a]);
     tabela($('t-feed'), feed, colunasPag(B), { porPagina: 25, nomeCsv: `ao-vivo-${jan}` });
     tabela($('t-emp'), Array.from(ie), [
@@ -219,7 +229,7 @@ export function colunasPag(B) {
 
 // ================================================================= PESSOAL
 const pessoal = {
-  id: 'pessoal', titulo: 'Pessoal', icone: '👥',
+  id: 'pessoal', titulo: 'Despesa com pessoal', icone: '👥',
   render(el, ctx) {
     const { B, ip } = ctx; const n = N(B);
     const ehPessoal = (i) => B.dims.vin[B.pag.k[i]] !== '';
@@ -263,18 +273,18 @@ const pessoal = {
 
 // ================================================================= EXECUÇÃO ORÇAMENTÁRIA
 const execucao = {
-  id: 'execucao', titulo: 'Execução e restos a pagar', icone: '⇶',
+  id: 'execucao', titulo: 'Execução orçamentária', icone: '⇶',
   render(el, ctx) {
     const { B, ie } = ctx; const n = N(B); const E = B.emp;
     const ve = soma(ie, E.ve); const vl = soma(ie, E.vl); const vp = soma(ie, E.vp); const va = soma(ie, E.va);
     const naoLiq = Math.max(0, ve - vl);
-    el.innerHTML = `${cabecalho('Execução orçamentária', 'Ciclo da despesa dos empenhos emitidos no período: empenhado → liquidado (serviço/entrega atestados) → pago. O saldo liquidado e não pago vira restos a pagar processados.')}
+    el.innerHTML = `${cabecalho('Execução orçamentária', 'Estágios da despesa (Lei 4.320/1964, arts. 58 a 65): empenho → liquidação → pagamento. Empenhado e não pago ao fim do exercício é inscrito em restos a pagar: processados (já liquidados) ou não processados.')}
       <div class="kpis">
         ${kpi('Empenhado', compacto(ve), `${int(ie.length)} empenhos`, brl(ve))}
         ${kpi('Liquidado', compacto(vl), pct(ve ? (vl / ve) * 100 : 0) + ' do empenhado')}
         ${kpi('Pago', compacto(vp), pct(ve ? (vp / ve) * 100 : 0) + ' do empenhado')}
-        ${kpi('Liquidado a pagar', compacto(va), 'dívida reconhecida (restos processados)')}
-        ${kpi('Empenhado não liquidado', compacto(naoLiq), 'restos não processados em potencial')}
+        ${kpi('Liquidado a pagar', compacto(va), 'candidato a restos a pagar processados')}
+        ${kpi('Empenhado a liquidar', compacto(naoLiq), 'candidato a restos a pagar não processados')}
       </div>
       <div class="grid">
         <div class="cols-2">
@@ -378,7 +388,7 @@ const modalidades = {
 
 // ================================================================= FORNECEDORES
 const fornecedores = {
-  id: 'fornecedores', titulo: 'Fornecedores', icone: '🏭',
+  id: 'fornecedores', titulo: 'Credores e fornecedores', icone: '🏭',
   render(el, ctx) {
     const { B, ip } = ctx; const C = B.dims.cred; const n = N(B);
     const empresa = (i) => B.pag.c[i] >= 0 && C.classe[B.pag.c[i]] === 'Empresa/entidade';
@@ -494,24 +504,32 @@ const contratos = {
   },
 };
 
+
+/** Dispensas ao mesmo credor, órgão e natureza no ano, somando acima do limite de dispensa por valor. */
+export function trilhaFracionamento(B, ie) {
+  const E = B.emp; const lim = B.meta.limites_dispensa; const anosLim = Object.keys(lim).map(Number).sort();
+  const limite = (ano, obras) => { const a = anosLim.filter((x) => x <= ano).pop() ?? anosLim[0]; return lim[a][obras ? 'obras' : 'outros']; };
+  const ehObra = (i) => (E.nat[i] >= 0 && B.dims.nat.c[E.nat[i]].startsWith('4.4.90.51')) || B.dims.mod[E.m[i]].includes('obras');
+  const grupos = new Map();
+  for (const i of ie) {
+    if (!B.dims.mod[E.m[i]].startsWith('Dispensa') || E.c[i] < 0 || E.ve[i] <= 0) continue;
+    const k = `${E.ano[i]}|${E.o[i]}|${E.c[i]}|${E.nat[i]}`;
+    const g = grupos.get(k) || { ano: E.ano[i], o: E.o[i], c: E.c[i], nat: E.nat[i], v: 0, n: 0, obra: ehObra(i) };
+    g.v += E.ve[i]; g.n++; grupos.set(k, g);
+  }
+  return [...grupos.values()].filter((g) => g.n >= 2 && g.v > limite(g.ano, g.obra)).map((g) => ({ ...g, lim: limite(g.ano, g.obra) }));
+}
+
+export function resumoContratacao(B, ip) { return grupoContratacao(B, ip); }
+
 // ================================================================= AUDITORIA
 const auditoria = {
   id: 'auditoria', titulo: 'Trilhas de auditoria', icone: '🔍',
   render(el, ctx) {
-    const { B, ip, ie } = ctx; const C = B.dims.cred; const n = N(B); const E = B.emp;
-    const lim = B.meta.limites_dispensa; const anosLim = Object.keys(lim).map(Number).sort();
-    const limite = (ano, obras) => { const a = anosLim.filter((x) => x <= ano).pop() ?? anosLim[0]; return lim[a][obras ? 'obras' : 'outros']; };
-    const ehObra = (i) => (E.nat[i] >= 0 && B.dims.nat.c[E.nat[i]].startsWith('4.4.90.51')) || B.dims.mod[E.m[i]].includes('obras');
+    const { B, ip, ie } = ctx; const C = B.dims.cred; const n = N(B);
 
-    // 1. Fracionamento: dispensas do mesmo credor, órgão e natureza no ano acima do limite legal
-    const grupos = new Map();
-    for (const i of ie) {
-      if (!B.dims.mod[E.m[i]].startsWith('Dispensa') || E.c[i] < 0 || E.ve[i] <= 0) continue;
-      const k = `${E.ano[i]}|${E.o[i]}|${E.c[i]}|${E.nat[i]}`;
-      const g = grupos.get(k) || { ano: E.ano[i], o: E.o[i], c: E.c[i], nat: E.nat[i], v: 0, n: 0, obra: ehObra(i) };
-      g.v += E.ve[i]; g.n++; grupos.set(k, g);
-    }
-    const frac = [...grupos.values()].filter((g) => g.n >= 2 && g.v > limite(g.ano, g.obra)).map((g) => ({ ...g, lim: limite(g.ano, g.obra) }));
+    // 1. Fracionamento
+    const frac = trilhaFracionamento(B, ie);
 
     // 2. Empresas presentes em muitos órgãos
     const orgs = new Map(); const valCred = new Map();
@@ -637,5 +655,7 @@ const qualidade = {
   },
 };
 
-export const VIEWS = [aovivo, geral, pessoal, execucao, modalidades, fornecedores, contratos, auditoria, explorar, qualidade];
+import { cfem, orcamento, pericia, receitaAoVivo } from './views_fiscal.js';
+
+export const VIEWS = [aovivo, pericia, orcamento, cfem, geral, pessoal, execucao, modalidades, fornecedores, contratos, auditoria, explorar, qualidade];
 export { N, linkCred, linkEmp, card, ch, cabecalho };

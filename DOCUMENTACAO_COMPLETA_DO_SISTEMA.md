@@ -4,7 +4,7 @@ Plataforma de inteligência fiscal da Prefeitura (entidade `45079490`) e da Câm
 Parauapebas (PA). Este documento descreve a arquitetura, o modelo de dados, as regras de negócio, a segurança e a operação.
 Ele substitui a versão 1, cujo código está preservado (localmente, fora do Git) em `legado/`.
 
-## 1. Por que a versão 2
+## 1. Por que a versão 2 (e o que a 2.1 acrescentou)
 
 Uma auditoria da versão 1 encontrou problemas que comprometiam os números exibidos:
 
@@ -176,7 +176,51 @@ ficar vazio até a remessa noturna.
 2. Em fevereiro/março, rode `python -m etl.pipeline --modo completo` e `python -m etl.semente gerar`, e faça commit da semente
    (o ano que fechou deixa de ser rebaixado pelo Actions).
 
-## 8. Limitações conhecidas
+## 8. Orçamento, receitas e CFEM (SICONFI)
+
+`etl/siconfi.py` baixa do Tesouro Nacional (API aberta, sem bloqueio) os demonstrativos que o Município é obrigado a enviar:
+
+| Demonstrativo | Uso no painel |
+| --- | --- |
+| RREO Anexo 01 (balanço orçamentário) | receita prevista inicial/atualizada × realizada; dotação inicial/atualizada × empenhada/liquidada/paga; restos a pagar não processados |
+| RREO Anexo 02 | dotação e execução por **função de governo** (o portal municipal não publica dotação por secretaria) |
+| RGF Anexo 01 | despesa total com pessoal (DTP) × RCL ajustada, por Poder — limites dos arts. 19, 20, 22 e 59 da LRF |
+| RGF Anexo 05 | disponibilidade de caixa × restos a pagar — teste do art. 42 da LRF em fim de mandato |
+| MSC classe 6 | receita realizada por natureza e fonte; despesa empenhada/liquidada/paga por natureza, função e **fonte de recursos** |
+
+**CFEM.** O ementário da receita mudou em 2022. Até 2021 a cota-parte da CFEM é a natureza 1.7.1.8.02.2 (fonte 194);
+a partir de 2022, natureza 1.7.1.2.51 e fonte 708 (Portaria STN 710/2021). Rastrear a fonte 708 na despesa mostra onde a CFEM
+foi aplicada, confrontando com o art. 2º da Lei 8.001/1990 (redação da Lei 13.540/2017): vedação de pagamento de dívida (salvo com a
+União) e de pessoal do quadro permanente (salvo exceção para a educação básica); recomendação de ≥ 20% em diversificação econômica.
+Para a dívida, o painel confere no portal quem recebeu os juros/amortizações do ano: se ≥ 90% foi a credores da União (INSS, PGFN,
+Fazenda), o achado é rebaixado a informativo.
+
+**Receitas do portal.** `receitasprevarrec` (previsão × arrecadação por natureza, com o nome oficial) e `receitasorc` (lançamentos
+diários com contribuinte, usados no Ao vivo). O `count` desses endpoints responde HTTP 500; a extração pagina até a página incompleta.
+
+## 9. Perícia — testes automáticos
+
+| Teste | Regra | Base legal |
+| --- | --- | --- |
+| Pessoal | DTP/RCL do último quadrimestre ≥ alerta (48,6%), prudencial (51,3%) ou máximo (54%) — Legislativo 5,4/5,7/6% | LRF arts. 20, 22, 23 e 59 |
+| Caixa × restos a pagar | disponibilidade de caixa líquida negativa no RGF Anexo 05; gravidade alta no último ano do mandato | LRF art. 42; CP art. 359-C |
+| Orçamento subestimado | créditos adicionais ≥ 20% da dotação inicial | Lei 4.320/1964 arts. 7º, 42 e 43; CF art. 167, V |
+| Déficit orçamentário | despesa empenhada > receita arrecadada em mais de 5% | Lei 4.320/1964 art. 43; LRF art. 1º, § 1º |
+| Queda da CFEM | último ano fechado < 70% do pico | LRF art. 4º, § 3º (riscos fiscais) |
+| CFEM em pessoal / dívida / DEA / auxílios | natureza da despesa na fonte da CFEM | Lei 8.001/1990 art. 2º |
+| CFEM acima da arrecadação | empenhado na fonte > 110% da receita do ano | LRF art. 8º, parágrafo único |
+| Diversificação | < 20% da CFEM nas funções 11, 19, 20, 22 e 23 | Lei 8.001/1990 art. 2º |
+| Fracionamento e contratação direta | trilhas da seção 4.6, no período filtrado | Lei 14.133/2021 arts. 72–75 |
+
+Achados são indícios; a confirmação exige o processo administrativo (empenho, nota fiscal, ateste, processo de compra).
+
+## 10. Design
+
+A interface segue o método da skill *dataviz*: paleta categórica validada por script (separação para daltonismo ΔE ≥ 9,1 entre
+cores vizinhas, nos temas claro e escuro), sem gráficos de dois eixos, cor fixa por entidade, roscas substituídas por barras com o
+percentual escrito, texto sempre em tinta neutra, títulos que enunciam o achado e tabela/CSV para todo gráfico.
+
+## 11. Limitações conhecidas
 * A API não liga contratos a empenhos nem informa o contratado/objeto do contrato.
 * O CPF de pessoas físicas é mascarado na fonte.
 * Itens de nota fiscal (litros de combustível, modelos de veículo) não estão na API.
@@ -184,3 +228,5 @@ ficar vazio até a remessa noturna.
 * O detalhe dos empenhos (objeto) é consultado aos poucos (1 requisição por empenho); a cobertura aumenta a cada ciclo,
   priorizando os recentes e as contratações diretas.
 * O limite de pessoal da LRF depende da receita corrente líquida, que não está no painel.
+* O RREO não traz os anexos de aplicação mínima em saúde (LC 141/2012) e educação (CF art. 212) pela API; esses índices dependem do SIOPS/SIOPE.
+* O orçamento por secretaria (unidade orçamentária) não é publicado por nenhuma API aberta; o painel usa a função de governo.

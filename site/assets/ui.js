@@ -9,13 +9,13 @@ export function limparGraficos() { vivos.forEach((c) => c.dispose()); vivos.clea
 window.addEventListener('resize', () => vivos.forEach((c) => c.resize()));
 
 function base() {
-  const t = css('--text'); const m = css('--muted'); const b = css('--border');
+  const t = css('--text'); const m = css('--faint'); const b = css('--border'); const g = css('--grid'); const ax = css('--axis');
   return {
-    color: paleta(), textStyle: { fontFamily: 'Inter, system-ui, sans-serif', color: t },
+    color: paleta(), textStyle: { fontFamily: css('--font'), color: t },
     grid: { left: 8, right: 16, top: 34, bottom: 8, containLabel: true },
     tooltip: { backgroundColor: css('--surface'), borderColor: b, textStyle: { color: t }, confine: true },
     legend: { top: 0, type: 'scroll', textStyle: { color: m }, icon: 'roundRect', itemWidth: 10, itemHeight: 10 },
-    _axis: { axisLine: { lineStyle: { color: b } }, axisLabel: { color: m }, splitLine: { lineStyle: { color: b, type: 'dashed' } } },
+    _axis: { axisLine: { lineStyle: { color: ax } }, axisTick: { show: false }, axisLabel: { color: m }, splitLine: { lineStyle: { color: g, width: 1 } } },
   };
 }
 
@@ -53,6 +53,8 @@ export function graficoMensal(el, { chaves, series }, { tipo = 'bar', empilhar =
     grid: { ...base().grid, bottom: chaves.length > 30 ? 28 : 8, top: nomes.length > 1 ? 34 : 12 },
     series: nomes.map((n, i) => ({
       name: n, type: tipo, stack: empilhar ? 't' : undefined, data: dados[i], barMaxWidth: 28,
+      itemStyle: tipo === 'bar' ? { borderColor: css('--surface'), borderWidth: empilhar && nomes.length > 1 ? 1 : 0, borderRadius: i === nomes.length - 1 || !empilhar ? [4, 4, 0, 0] : 0 } : undefined,
+      lineStyle: tipo === 'line' ? { width: 2 } : undefined,
       areaStyle: tipo === 'line' && empilhar ? { opacity: 0.25 } : undefined, smooth: tipo === 'line', symbol: 'none',
       emphasis: { focus: 'series' },
     })),
@@ -61,28 +63,24 @@ export function graficoMensal(el, { chaves, series }, { tipo = 'bar', empilhar =
 const sum = (a) => a.reduce((x, y) => x + y, 0);
 
 /** Barras horizontais de ranking. itens: [{nome, v}] */
-export function graficoRanking(el, itens, { onClick, formato = brl } = {}) {
+export function graficoRanking(el, itens, { onClick, formato = brl, rotulo } = {}) {
   const lista = [...itens].reverse();
   return grafico(el, {
     tooltip: { ...base().tooltip, trigger: 'axis', axisPointer: { type: 'shadow' }, valueFormatter: formato },
     grid: { ...base().grid, top: 6 },
     xAxis: { type: 'value', axisLabel: { formatter: formato === brl ? fmtEixo : undefined, color: css('--muted') } },
     yAxis: { type: 'category', data: lista.map((x) => x.nome), axisLabel: { width: 190, overflow: 'truncate', color: css('--text') }, axisTick: { show: false } },
-    series: [{ type: 'bar', data: lista.map((x) => x.v), barMaxWidth: 18, itemStyle: { borderRadius: [0, 4, 4, 0] },
-      label: { show: true, position: 'right', formatter: (p) => (formato === brl ? compacto(p.value) : formato(p.value)), color: css('--muted'), fontSize: 11 } }],
+    series: [{ type: 'bar', data: lista.map((x) => x.v), barMaxWidth: 16, barCategoryGap: '35%', itemStyle: { borderRadius: [0, 4, 4, 0], color: css('--c1') },
+      label: { show: true, position: 'right', formatter: (p) => (rotulo ? rotulo(p.value) : formato === brl ? compacto(p.value) : formato(p.value)), color: css('--muted'), fontSize: 11 } }],
     _onClick: onClick ? (p) => onClick(itens[itens.length - 1 - p.dataIndex]) : null,
   });
 }
 
-/** Rosca de participação. */
-export function graficoRosca(el, itens, { onClick } = {}) {
-  return grafico(el, {
-    tooltip: { ...base().tooltip, trigger: 'item', formatter: (p) => `${esc(p.name)}<br><b>${brl(p.value)}</b> (${p.percent}%)` },
-    legend: { ...base().legend, orient: 'vertical', left: 'right', top: 'middle', type: 'scroll' },
-    series: [{ type: 'pie', radius: ['52%', '78%'], center: ['34%', '52%'], avoidLabelOverlap: true, label: { show: false },
-      itemStyle: { borderColor: css('--surface'), borderWidth: 2 },
-      data: itens.map((x) => ({ name: x.nome, value: Math.max(0, x.v) })) }],
-    _onClick: onClick ? (p) => onClick(itens[p.dataIndex]) : null,
+/** Participação no todo: barras horizontais com o percentual escrito (lê-se melhor que rosca). */
+export function graficoRosca(el, itens, opts = {}) {
+  const tot = itens.reduce((a, x) => a + Math.max(0, x.v), 0) || 1;
+  return graficoRanking(el, itens.filter((x) => x.v > 0), {
+    ...opts, rotulo: (v) => `${compacto(v)} · ${((v / tot) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`,
   });
 }
 
