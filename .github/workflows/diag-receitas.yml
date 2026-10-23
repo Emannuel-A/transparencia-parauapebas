@@ -17,4 +17,4 @@ jobs:
             data/cache
           key: dados-diag-${{ github.run_id }}
           restore-keys: dados-
-      - run: python tools/diag_receitas.py
+      - run: python -m tools.diag_receitas
