@@ -239,12 +239,15 @@ export const cfem = {
 
 // ================================================================= PERÍCIA
 const UNIAO = /INSS|INSTITUTO NACIONAL DO SEGURO|MINISTERIO|RECEITA FEDERAL|PROCURADORIA.GERAL DA FAZENDA|PGFN|TESOURO NACIONAL|UNIAO|FAZENDA NACIONAL/;
+/** Credores dos pagamentos de dívida no ano, só nos grupos em que a CFEM foi aplicada (3.2 juros, 4.6 amortização). */
 function credoresDivida(B, ano) {
+  const grupos = [...new Set(B.fiscal.cfem_aplicacao.filter((r) => r.ano === ano && /^(32|46)/.test(r.nd)).map((r) => `${r.nd[0]}.${r.nd[1]}`))];
+  if (!grupos.length) grupos.push('3.2', '4.6');
   const d0 = Math.round((Date.parse(`${ano}-01-01T00:00:00Z`) - B.dia0) / 864e5); const d1 = d0 + 365;
   const m = new Map(); let total = 0; let uniao = 0;
   for (let i = 0; i < B.pag.n; i++) {
     if (B.pag.d[i] < d0 || B.pag.d[i] > d1 || B.pag.nat[i] < 0) continue;
-    const c = B.dims.nat.c[B.pag.nat[i]]; if (!c.startsWith('3.2') && !c.startsWith('4.6')) continue;
+    const c = B.dims.nat.c[B.pag.nat[i]]; if (!grupos.some((g) => c.startsWith(g))) continue;
     const nome = B.pag.c[i] >= 0 ? B.dims.cred.nome[B.pag.c[i]] : '—'; const v = B.pag.v[i];
     total += v; if (UNIAO.test(nome.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase())) uniao += v;
     m.set(nome, (m.get(nome) || 0) + v);
