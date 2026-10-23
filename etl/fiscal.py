@@ -194,7 +194,8 @@ def montar(log=print):
             # Série preliminar: meses ainda não enviados ao SICONFI (a MSC sai até o fim do mês seguinte)
             oficiais = {(int(a), int(m)) for a, m in zip(mensal["ano"], mensal["mes"])}
             rl["ano"], rl["mes"] = rl["data"].dt.year, rl["data"].dt.month
-            prel = rl[[(int(a), int(m)) not in oficiais for a, m in zip(rl["ano"].fillna(0), rl["mes"].fillna(0))] & rl["data"].notna()]
+            novo = pd.Series([(int(a), int(m)) not in oficiais for a, m in zip(rl["ano"].fillna(0), rl["mes"].fillna(0))], index=rl.index)
+            prel = rl[novo & rl["data"].notna()]
             preliminar = (prel.groupby(["ano", "mes", "origem"])["v"].sum().reset_index().rename(columns={"v": "valor"})
                           .assign(ano=lambda d: d.ano.astype(int), mes=lambda d: d.mes.astype(int)).round(2).to_dict("records"))
             for r in preliminar:
