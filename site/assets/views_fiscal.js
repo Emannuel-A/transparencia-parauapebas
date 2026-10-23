@@ -177,7 +177,11 @@ export const cfem = {
         ${kpi(`CFEM arrecadada em ${ano}`, compacto(r.rec), `${pct(r.dep)} da receita total${prelTot ? ` · <b>+ ${compacto(prelTot)} preliminar</b> (${prelMeses}, portal municipal)` : ''}`)}
         ${kpi('Empenhado com recursos da CFEM', compacto(r.emp), r.emp > r.rec ? '<span class="delta-up">acima da arrecadação do ano</span>' : 'fonte de recursos 708')}
         ${kpi('Em pessoal (vedado)', compacto(r.pessoal), r.pessoal > 0 ? '<span class="delta-up">verificar exceção da educação</span>' : '<span class="delta-down">nenhum valor no grupo 3.1</span>')}
-        ${kpi('Em dívida (vedado)', compacto(r.divida), r.divida > 0 ? '<span class="delta-up">só permitido dívida com a União</span>' : '<span class="delta-down">nenhum valor</span>')}
+        ${kpi('Em serviço da dívida', compacto(r.divida), (() => {
+    if (!r.divida) return '<span class="delta-down">nenhum valor</span>';
+    const u = credoresDivida(B, ano);
+    return u.total && u.uniao / u.total >= 0.9 ? `${pct((u.uniao / u.total) * 100, 0)} pago a credores da União (permitido)` : '<span class="delta-up">vedado, salvo dívida com a União</span>';
+  })())}
         ${kpi('Em diversificação econômica', pct(r.emp ? (r.divers / r.emp) * 100 : 0), 'recomendado ≥ 20% (§ 6º do art. 2º)')}
         ${kpi('Em investimentos (4.4)', pct(r.emp ? (r.investimento / r.emp) * 100 : 0), compacto(r.investimento))}
       </div>
@@ -205,8 +209,7 @@ export const cfem = {
       yAxis: { type: 'value', axisLabel: { formatter: eixo } }, dataZoom: [{ type: 'inside' }],
       grid: { left: 8, right: 16, top: 12, bottom: 8, containLabel: true },
       series: [{ name: 'CFEM', type: 'bar', barMaxWidth: 14, itemStyle: { borderRadius: [4, 4, 0, 0] },
-        data: mens.map((m) => ({ value: m.valor, itemStyle: m.prel ? { opacity: 0.4 } : undefined,
-          label: m.prel ? { show: true, position: 'top', formatter: 'prelim.', fontSize: 10 } : undefined })) }],
+        data: mens.map((m) => ({ value: m.valor, itemStyle: m.prel ? { opacity: 0.4 } : undefined })) }],
     });
     grafico($('c-dep'), {
       tooltip: { trigger: 'axis', valueFormatter: (v) => `${v.toFixed(1)}%` },
