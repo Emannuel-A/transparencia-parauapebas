@@ -4,6 +4,7 @@ Tabelas geradas em data/warehouse/:
   dim_orgao, dim_credor, dim_natureza, fato_pagamento, fato_empenho, contratos, licitacoes
 """
 import json
+import re
 from datetime import datetime
 
 import numpy as np
@@ -141,6 +142,61 @@ def _credores(pag, emp, cnpj_cache):
     return dim
 
 
+RE_CONTRATO = r"(?:\bCT\b|CONTRATO)\D{0,10}?(\d{8})"
+RE_INFRA = (r"PAVIMENT|ASFALT|CBUQ|CAUQ|TAPA.?BURACO|RECAPE|DRENAG|TERRAPLEN|OBRA|CONSTRU|REFORMA|PONTE|BUEIRO|"
+            r"ESTRADA|VICINA|MEIO.?FIO|CALÇADA|CALCADA|SANEAMENT|ILUMINA|URBANIZA|ENGENHARIA|VIAS")
+
+
+def _auditar_contratos(contratos, con, emp, rel):
+    """Liga cada contrato ao contratado e ao objeto pelos históricos dos empenhos ("CT-20250496",
+    "contrato nº 20220399") e calcula os testes de aditivos usados na Auditoria de Infraestrutura."""
+    e = emp.loc[emp["historico"] != ""].copy()
+    e["ct"] = e["historico"].str.extract(RE_CONTRATO, flags=re.I)[0]
+    e = e[e["ct"].notna()]
+    vinc = {}
+    for (ent, ct), g in e.groupby(["ent", "ct"]):
+        cred = g.groupby("cred_id")["empenhado"].sum().idxmax()
+        maior = g.loc[g["empenhado"].idxmax()]
+        obj = re.split(r"[,.;]\s*(?:\d+\s*[º°ª]?\s*B\.?M|REFERENTE|PER[IÍ]ODO|CT[-\s]|CONTRATO)", maior["historico"], flags=re.I)[0]
+        vinc[(ent, ct)] = {"cred_id": int(cred), "objeto": obj.strip()[:300], "emp_vinc": float(g["empenhado"].sum()),
+                           "pago_vinc": float(g["pago"].sum()), "medicoes": int(len(g)),
+                           "modalidade_vinc": g["modalidade"].mode().iat[0], "org_vinc": int(g["org_id"].mode().iat[0]),
+                           "nat_vinc": g["nat_cod"].mode().iat[0], "ult_emp": g["data"].max()}
+    v = pd.DataFrame([{"ent": k[0], "numContr": k[1], **x} for k, x in vinc.items()])
+    out = contratos.merge(v, on=["ent", "numContr"], how="left")
+
+    # Aditivos celebrados depois do fim da vigência anterior e prorrogações com valor igual ao original
+    con = con.assign(ini=N.data_br(con["dataInicVigen"]), fim=N.data_br(con["dataFinaVegen"]))
+    vencidos, integral, maior_pct, lacunas = {}, {}, {}, {}
+    for (ent, num), g in con.groupby(["ent", "numContr"]):
+        g = g.sort_values(["d", "aditivo"])
+        orig = g[g["aditivo"] == ""]["valor_n"].sum()
+        fim_ant, n_venc, n_int, mx, gap = None, 0, 0, 0.0, 0
+        for _, r in g.iterrows():
+            # vigência retomada depois de encerrada: período sem cobertura contratual
+            if r["aditivo"] and fim_ant is not None and pd.notna(r["ini"]) and (r["ini"] - fim_ant).days > 1:
+                gap = max(gap, (r["ini"] - fim_ant).days)
+            if r["aditivo"] and fim_ant is not None and pd.notna(r["d"]) and r["d"] > fim_ant:
+                n_venc += 1
+            if r["aditivo"] and orig > 0:
+                mx = max(mx, r["valor_n"] / orig)
+                if abs(r["valor_n"] - orig) / orig < 0.01:
+                    n_int += 1
+            if pd.notna(r["fim"]):
+                fim_ant = r["fim"] if fim_ant is None else max(fim_ant, r["fim"])
+        vencidos[(ent, num)], integral[(ent, num)], maior_pct[(ent, num)], lacunas[(ent, num)] = n_venc, n_int, mx, gap
+    idx = list(zip(out["ent"], out["numContr"]))
+    out["adit_apos_vencimento"] = [vencidos.get(k, 0) for k in idx]
+    out["prorrog_valor_integral"] = [integral.get(k, 0) for k in idx]
+    out["maior_aditivo_pct"] = [round(maior_pct.get(k, 0) * 100, 1) for k in idx]
+    out["lacuna_vigencia_dias"] = [lacunas.get(k, 0) for k in idx]
+    obj = out["objeto"].fillna("").str.upper()
+    out["infra"] = obj.str.contains(RE_INFRA, regex=True) | out["nat_vinc"].fillna("").str.startswith("4.4.90.51")
+    rel.add("contratos", "Contratos ligados ao contratado pelo histórico dos empenhos", out["cred_id"].notna().sum(),
+            f"de {len(out):,}; regex sobre o número do contrato citado no histórico (cobertura cresce com o detalhamento)")
+    return out
+
+
 def transformar(log=print):
     rel = Relatorio()
     WAREHOUSE_DIR.mkdir(parents=True, exist_ok=True)
@@ -274,6 +330,7 @@ def transformar(log=print):
             con.assign(f=N.data_br(con["dataFinaVegen"])).groupby(["ent", "numContr"])["f"].max()).values
         rel.add("contratos", "Contratos únicos (instrumento + aditivos agregados)", len(contratos),
                 f"{len(con):,} linhas brutas; a API não expõe o contratado, que NÃO é inventado")
+        contratos = _auditar_contratos(contratos, con, fato_emp, rel)
 
     lic = _ler("licitacoes")
     if len(lic):

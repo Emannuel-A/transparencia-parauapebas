@@ -169,6 +169,7 @@ function render() {
   limparGraficos();
   const ctx = { B, F, per, ip, ie, estado, setFiltro, abrirCredor, abrirEmpenho, rerender: render, sessao,
     auditoriaResumo: () => ({ frac: trilhaFracionamento(B, ie).length, pctDireta: resumoContratacao(B, ip).pctDireta }) };
+  $('view').onclick = null;
   try { v.render($('view'), ctx); } catch (e) { console.error(e); $('view').innerHTML = `<div class="notice notice-warn">Erro ao montar esta visão: ${esc(e.message)}</div>`; }
 }
 

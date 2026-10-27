@@ -11,6 +11,7 @@ fica publicado no GitHub Pages e só abre com usuário e senha.
 | Visão | Conteúdo |
 | --- | --- |
 | **Perícia — achados** | Testes automáticos de conformidade (LRF, Lei 4.320/1964, Lei 14.133/2021, regras da CFEM) com gravidade, base legal e link para os dados. |
+| **Auditoria de infraestrutura** | Contratos de obras, pavimentação, drenagem, estradas e iluminação com o contratado identificado pelos empenhos, e 8 testes: aditivos acima de 25%, vigência interrompida, aditivo com contrato vencido, pago acima do contratado, obra por carona, prorrogação com valor integral, microempresa com contrato milionário e capital social baixo. Cada contrato tem dossiê com medições e pagamentos. |
 | **Receitas e orçamento** | LOA prevista × arrecadado × empenhado por exercício, créditos adicionais, resultado orçamentário, receita por origem e natureza, orçamento por função de governo. |
 | **CFEM e mineração** | Royalties da mineração mês a mês, dependência da receita, CFEM × despesa com pessoal e onde a CFEM foi aplicada (por natureza e função), com as vedações legais. |
 | **Ao vivo** | O que foi pago e empenhado **hoje, nos últimos 3, 7, 15 e 30 dias**, comparado à janela anterior. Inclui linha do tempo de pagamentos, novos empenhos com objeto, fornecedores que receberam pela primeira vez e quando o portal publicou dados pela última vez. |

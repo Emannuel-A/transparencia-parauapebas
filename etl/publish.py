@@ -102,6 +102,14 @@ def montar_pacote():
             "d": _dias(con["data"]), "vi": con["vig_ini"].fillna("").tolist(),
             "vf": con["vig_fim_ult"].dt.strftime("%d/%m/%Y").fillna("").tolist(),
             "vo": _cent(con["valor_original"]), "va": _cent(con["valor_aditivos"]), "qa": con["qtd_aditivos"].tolist(),
+            # ligação contrato -> contratado/objeto pelos históricos dos empenhos + testes de aditivos
+            "c": con["cred_id"].fillna(-1).astype(int).tolist(), "obj": con["objeto"].fillna("").tolist(),
+            "ve": _cent(con["emp_vinc"]), "vp": _cent(con["pago_vinc"]), "med": con["medicoes"].fillna(0).astype(int).tolist(),
+            "mod": con["modalidade_vinc"].fillna("").tolist(), "org": con["org_vinc"].fillna(-1).astype(int).tolist(),
+            "infra": con["infra"].fillna(False).astype(int).tolist(), "adv": con["adit_apos_vencimento"].astype(int).tolist(),
+            "pint": con["prorrog_valor_integral"].astype(int).tolist(), "lac": con["lacuna_vigencia_dias"].astype(int).tolist(),
+            "mxp": con["maior_aditivo_pct"].tolist(),
+            "ult": _dias(con["ult_emp"]),
         },
         "lic": {} if lic.empty else {
             "e": lic["ent"].map(ent_idx).tolist(), "num": lic["numprocecompra"].fillna("").tolist(),

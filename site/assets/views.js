@@ -656,6 +656,7 @@ const qualidade = {
 };
 
 import { cfem, orcamento, pericia, receitaAoVivo } from './views_fiscal.js';
+import { infra } from './views_infra.js';
 
-export const VIEWS = [aovivo, pericia, orcamento, cfem, geral, pessoal, execucao, modalidades, fornecedores, contratos, auditoria, explorar, qualidade];
+export const VIEWS = [aovivo, pericia, infra, orcamento, cfem, geral, pessoal, execucao, modalidades, fornecedores, contratos, auditoria, explorar, qualidade];
 export { N, linkCred, linkEmp, card, ch, cabecalho };

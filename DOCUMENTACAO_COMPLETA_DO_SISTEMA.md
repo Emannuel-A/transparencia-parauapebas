@@ -214,6 +214,27 @@ diários com contribuinte, usados no Ao vivo). O `count` desses endpoints respon
 
 Achados são indícios; a confirmação exige o processo administrativo (empenho, nota fiscal, ateste, processo de compra).
 
+### 9.1 Auditoria de infraestrutura
+
+A API de contratos não informa contratado nem objeto. `transform._auditar_contratos` extrai o número do contrato citado
+no histórico dos empenhos (`CT-20250496`, `contrato nº 20220399`) e atribui ao contrato o credor com maior valor empenhado,
+o objeto do maior empenho, a modalidade e o total empenhado/pago. Um contrato é de infraestrutura se o objeto cita obra,
+pavimentação, drenagem, estrada, iluminação, saneamento etc., ou se a natureza predominante é 4.4.90.51.
+
+| Teste | Regra | Base legal |
+| --- | --- | --- |
+| Aditivos acima de 25% | soma dos aditivos de valor > 25% do original (exceto renovação integral) | Lei 8.666/1993 art. 65, § 1º; Lei 14.133/2021 art. 125 |
+| Vigência interrompida | início de vigência de um aditivo mais de 1 dia após o fim da vigência anterior | Lei 8.666/1993 art. 57; Lei 14.133/2021 arts. 105–107 |
+| Aditivo com contrato vencido | data do termo aditivo posterior ao fim da vigência anterior | idem |
+| Pago acima do contratado | pago vinculado > 102% do valor total | Lei 4.320/1964 arts. 62–63 |
+| Obra por carona | modalidade predominante "Adesão a ata" | Lei 14.133/2021 arts. 85 e 86 |
+| Prorrogação com valor integral | aditivo de valor igual ao original | Lei 14.133/2021 art. 107 |
+| Microempresa com contrato milionário | porte ME/EPP na Receita e contrato > R$ 4,8 mi | LC 123/2006 art. 3º |
+| Capital social < 10% | capital social < 10% do valor do contrato | Lei 14.133/2021 art. 69, § 4º |
+
+Validação: o teste reproduziu, a partir dos dados públicos, os pontos da ação popular nº 0820480-05.2025.8.14.0040
+(contrato 20220399, Consórcio Vitória, bairro Cidade Jardim): aditivos de 42,6% sobre o original e vigência interrompida por 183 dias.
+
 ## 10. Design
 
 A interface segue o método da skill *dataviz*: paleta categórica validada por script (separação para daltonismo ΔE ≥ 9,1 entre
